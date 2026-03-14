@@ -1,0 +1,17 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Data volumes (local container data, do not commit)
+data/
+
+# OS
+.DS_Store
+
+# Local secrets
+.env
+
+# VS Code
+.vscode/

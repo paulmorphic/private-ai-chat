@@ -1,0 +1,24 @@
+# SearXNG overrides on top of the image defaults.
+# Only list what differs from the defaults, so image upgrades stay painless.
+use_default_settings:
+  engines:
+    keep_only:
+      - brave
+      - brave.images
+      - brave.videos
+      - brave.news
+
+general:
+  enable_metrics: false
+
+search:
+  # json is required by Open WebUI web search
+  formats:
+    - html
+    - json
+
+server:
+  # internal-only, no bot protection needed
+  limiter: false
+  public_instance: false
+  # secret_key comes from SEARXNG_SECRET (see .env)
