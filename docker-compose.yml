@@ -37,11 +37,14 @@ services:
       - ./data/open-webui:/app/backend/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      # Block version check phone-home for privacy
+      # Block openwebui.com (bare domain only; the update check goes to GitHub)
       - "openwebui.com:127.0.0.1"
     environment:
       # Ollama running natively on the host (brew) – Metal/GPU enabled
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # New-version banner: one anonymous GET to api.github.com (latest release tag),
+      # no chat data. Kept on so security releases get noticed.
+      - ENABLE_VERSION_UPDATE_CHECK=true
       # Everything below except HF_HUB_OFFLINE and WEBUI_SECRET_KEY is only applied
       # when the database is created; afterwards it is a stored setting changed in
       # the UI (see docs/open-webui-setup.md).

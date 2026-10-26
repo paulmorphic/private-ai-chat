@@ -34,7 +34,7 @@ Most "local" AI setups still leak: telemetry, update checks, model hubs, cloud f
 | 🧠 **Your chats stay local** | The model runs in Ollama on your Mac; conversations live in `./data`. With web search off, nothing leaves your machine. |
 | 🔓 **Uncensored by default** | Ships with an uncensored model ([`jaahas/qwen3.5-uncensored:4b`](https://ollama.com/jaahas/qwen3.5-uncensored)): no corporate guardrails, no lectures, far fewer refusals. It answers what you ask, so what you do with it is on you. Prefer a filtered model? [Swap it](#using-another-model). |
 | 🔎 **Search leaks as little as possible** | Web search is opt-in per chat and goes through your own SearXNG to **Brave Search only**, without cookies, a profile or an account. One provider per query, never Google. It is still web search, though — see [Privacy](#privacy). |
-| 🚫 **Nothing phones home** | Telemetry off, update check blocked, OpenAI connection and community sharing disabled, Hugging Face offline. |
+| 🚫 **Nothing phones home** | Telemetry off, OpenAI connection and community sharing disabled, Hugging Face offline. |
 | 🏠 **Not on your network** | Open WebUI and Ollama listen on `127.0.0.1` only. SearXNG has no host port at all. |
 | ⚡ **Actually usable on a small model** | A tuned preset makes a 4B reasoning model answer in seconds instead of minutes, with web search that really runs. |
 
@@ -177,7 +177,8 @@ Web search means talking to the internet, and that always leaks something:
 | 🔎 Web search | Only when the globe icon is on. Query → your SearXNG → **Brave Search**. No cookies, no profile, no other engines, but your IP is visible. |
 | 🌐 Result pages | Fetched directly by Open WebUI; the sites see your IP. |
 | 📚 Embeddings | `multilingual-e5-small`, runs locally on CPU. Downloaded once by `make setup`; Open WebUI always runs with Hugging Face offline. |
-| 🚫 Telemetry | Off. Update check blocked (`openwebui.com` → `127.0.0.1`). OpenAI connection and community sharing disabled. |
+| 🚫 Telemetry | Off. OpenAI connection and community sharing disabled. |
+| 🔔 Update check | Open WebUI asks `api.github.com` for the latest release tag to show the "new version" banner. No chat data is sent; GitHub sees your IP. Set `ENABLE_VERSION_UPDATE_CHECK=false` in `docker-compose.yml` to turn it off. |
 | 🏠 Network | Open WebUI on `127.0.0.1:3000`, Ollama on `127.0.0.1:11434`, SearXNG without a host port. Nothing listens on your LAN. |
 | 📥 Downloads | Docker images, the Ollama model and the embedding model are downloaded once during setup. |
 
