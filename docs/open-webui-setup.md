@@ -1,6 +1,6 @@
 # Open WebUI setup for a small thinking model
 
-Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `4b-fast`, follow-ups and tags off). The `4b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested with `jaahas/qwen3.5-uncensored:4b` on an M1 with 16 GB; full fresh-install run verified 2026-10-24).
+Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `4b-fast`, follow-ups and tags off, context compaction). The `4b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested with `jaahas/qwen3.5-uncensored:4b` on an M1 with 16 GB; full fresh-install run verified 2026-10-24).
 
 ## Why this is needed
 
@@ -11,7 +11,7 @@ With default settings, a small reasoning model is slow and web search silently d
 
 ## Steps
 
-Fresh install (empty `data/`): run `make setup` (installs Ollama, pulls the model, downloads the embedding model once, starts everything), then create the admin account at http://localhost:3000 (the first account becomes the admin). Only step 1 is required; steps 2, 3 and 3a are already applied from `docker-compose.yml` and only need checking. On an existing database the env vars are ignored, so do all steps.
+Fresh install (empty `data/`): run `make setup` (installs Ollama, pulls the model, downloads the embedding model once, starts everything), then create the admin account at http://localhost:3000 (the first account becomes the admin). Only step 1 is required; steps 2, 3, 3a and 3b are already applied from `docker-compose.yml` and only need checking. On an existing database the env vars are ignored, so do all steps.
 
 ### 1. Create the `4b-fast` preset (required)
 
@@ -60,6 +60,24 @@ Web search fetches pages, splits them into chunks, and an embedding model picks 
 - The model must already be in `data/open-webui/cache` because Open WebUI runs with Hugging Face offline. `make setup` downloads it (only the files sentence-transformers needs, ~0.5 GB; Open WebUI's own download button would fetch the whole ~2.2 GB repo with ONNX/OpenVINO copies, and with `HF_HUB_OFFLINE=1` it can't download at all).
 - e5 needs `query: ` / `passage: ` prefixes; they come from `RAG_EMBEDDING_QUERY_PREFIX` / `RAG_EMBEDDING_CONTENT_PREFIX` in `docker-compose.yml` (applied on every start, no UI setting).
 
+### 3b. Context compaction (pre-seeded on a fresh DB)
+
+Long chats would otherwise overflow `num_ctx` 16384, and Ollama silently drops the oldest messages. With compaction on, once a chat passes the token threshold, Open WebUI asks `4b-fast` to summarize the older messages and sends the summary instead of them (the chat in the UI still shows everything). The newest 40% of messages are kept as they are.
+
+**Admin Panel → Settings → Interface** (`/admin/settings/interface`), section **Chat**:
+
+- **Context Compaction** → on.
+- **Context Compaction Model** → `4b-fast`.
+- **Token Threshold** → `11000`, **Token Cap** → `11000`.
+
+Click **Save**.
+
+- Why 11000 and not 16384: the check runs before web search results are added (~1-3k tokens with 3 results), and the answer and the summary also need room. Keep the threshold at about two thirds of `num_ctx`; if you raise `num_ctx` in the preset, raise both values too.
+- The count is the last answer's real token usage reported by Ollama (prompt + answer) plus an estimate of the new message, so it matches what Ollama sees.
+- A per-chat threshold can be set in **Chat Controls → Advanced Params → Context Compaction Threshold** (capped by **Token Cap**). Handy for testing: set it to `300` in a temporary chat and send three messages.
+- Cost: the summary is an extra generation of up to ~30 s, only when the threshold is crossed. A 4B model may drop details, so important facts are better kept in **Settings → Personalization → Memory** or a Knowledge file.
+- Check in the logs: `docker logs open-webui 2>&1 | grep "Compacted chat context"`.
+
 ### 4. Chat
 
 - New chats open with **4b-fast** and Web Search already on (globe icon highlighted next to `+`). If not, pick the model and toggle Web Search via the sparkles icon.
@@ -77,14 +95,14 @@ Check the saved settings read-only (does not touch chats):
 docker exec -i open-webui python - <<'EOF'
 import sqlite3, json
 c = sqlite3.connect('file:/app/backend/data/webui.db?mode=ro', uri=True)
-for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','web.search.enable','web.search.engine') order by key"):
+for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold') order by key"):
     print(k, "=", v)
 for mid, p, m in c.execute("select id, params, meta from model order by id"):
     print("model", mid, json.loads(p), "default features:", json.loads(m).get("defaultFeatureIds"))
 EOF
 ```
 
-Expected: `task.model.default = "4b-fast"`, `ui.default_models = "4b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
+Expected: `task.model.default = "4b-fast"`, `ui.default_models = "4b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "4b-fast"`, `chat.context_compaction.token_threshold = 11000`, the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
 
 Check that SearXNG only has Brave engines:
 

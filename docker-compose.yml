@@ -61,6 +61,13 @@ services:
       - DEFAULT_MODELS=4b-fast
       - ENABLE_FOLLOW_UP_GENERATION=false
       - ENABLE_TAGS_GENERATION=false
+      # Context compaction: once a chat passes the threshold, older messages are
+      # summarized by 4b-fast and replaced by the summary (the UI still shows them).
+      # Checked before web search results are added, so the threshold leaves ~5k of
+      # num_ctx 16384 for search results, the summary and the answer.
+      - ENABLE_CONTEXT_COMPACTION=true
+      - CONTEXT_COMPACTION_MODEL=4b-fast
+      - CONTEXT_COMPACTION_TOKEN_THRESHOLD=11000
       # Multilingual embedding model for picking relevant parts of fetched pages
       # (the default all-MiniLM-L6-v2 is English-only and misses Polish pages).
       # The model is a stored setting (fresh DB only); the e5 prefixes below are
