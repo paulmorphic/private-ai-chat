@@ -107,6 +107,18 @@ make stop    # ⏹️  stop containers + unload the model from RAM
 > [!TIP]
 > The model only takes RAM while in use, and Ollama unloads it by itself after 5 minutes idle. To free everything, run `make stop` and quit Docker Desktop. Without `make stop`, the containers come back on their own next time Docker starts.
 
+## 💾 Backup
+
+```bash
+make backup                                   # → backups/open-webui-<date>.tar.gz
+make restore FILE=backups/open-webui-<date>.tar.gz   # asks for yes, replaces current data
+```
+
+A backup holds everything that can't be recreated: chats, your account, settings, presets (`4b-fast`, `4b-think`), Memory, Knowledge, Notes, and `.env`. It leaves out the embedding model (re-downloaded by `make setup`) and the Ollama model. Open WebUI stops for a few seconds while the backup is written, so the database copy is consistent.
+
+> [!CAUTION]
+> Backups contain your private chats and `.env` secrets unencrypted. `backups/` is gitignored and the files are readable only by you; if you copy them elsewhere, keep them somewhere private. Run `make backup` before `make clean` or an Open WebUI upgrade.
+
 ## 🧹 Clean up
 
 > [!WARNING]
@@ -145,6 +157,8 @@ make ollama-status             # check if Ollama is running
 make setup         # one-time install (safe to re-run)
 make start         # daily start
 make stop          # daily stop
+make backup        # back up data + .env to backups/
+make restore FILE=<file>  # ⚠️ replace data + .env with a backup, asks first
 make clean         # ⚠️ delete ./data (chats, account, settings), asks first
 make uninstall     # ⚠️ remove containers, images, data, .env and the model, asks first
 ```

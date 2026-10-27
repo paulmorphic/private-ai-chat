@@ -15,7 +15,7 @@ EMBED_CACHE := data/open-webui/cache/embedding/models/models--$(subst /,--,$(EMB
 # private-ai-chat
 # ─────────────────────────────────────────
 
-.PHONY: help setup start stop uninstall ollama-up wait-webui env up down restart logs logs-webui logs-searxng status ollama-start ollama-stop ollama-list ollama-pull ollama-rm ollama-ps clean
+.PHONY: help setup start stop uninstall ollama-up wait-webui env up down restart logs logs-webui logs-searxng status ollama-start ollama-stop ollama-list ollama-pull ollama-rm ollama-ps clean backup restore
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -135,6 +135,28 @@ ollama-status: ## Check if Ollama is running and reachable
 # ─────────────────────────────────────────
 # Maintenance
 # ─────────────────────────────────────────
+
+backup: ## Back up chats, account, settings and .env to backups/ (stops Open WebUI for a few seconds)
+	@mkdir -p backups
+	@running=$$(docker compose ps -q open-webui 2>/dev/null); \
+	[ -z "$$running" ] || docker compose stop open-webui >/dev/null 2>&1; \
+	f=backups/open-webui-$$(date +%Y%m%d-%H%M%S).tar.gz; \
+	(umask 077; tar -czf $$f --exclude data/open-webui/cache data/open-webui .env); ok=$$?; \
+	[ -z "$$running" ] || docker compose start open-webui >/dev/null 2>&1; \
+	[ $$ok -eq 0 ] || { rm -f $$f; echo "✗ Backup failed"; exit 1; }; \
+	echo "✓ Backup: $$f ($$(du -h $$f | cut -f1)). Contains your private chats, keep it safe."
+
+restore: ## Replace current data with a backup (usage: make restore FILE=backups/open-webui-....tar.gz)
+	@[ -n "$(FILE)" ] || { echo "Usage: make restore FILE=backups/open-webui-....tar.gz"; ls -1 backups/*.tar.gz 2>/dev/null; exit 1; }
+	@[ -f "$(FILE)" ] || { echo "✗ $(FILE) not found"; exit 1; }
+	@echo "Close all Open WebUI browser tabs first (a stale tab retries in a loop)."
+	@read -p "Replace current chats, account, settings and .env with $(FILE)? Type yes: " ans && [ "$$ans" = yes ] || { echo "Aborted."; exit 1; }
+	@# Placeholder secrets: `down` needs none, but compose refuses to run without .env (e.g. on a new machine)
+	SEARXNG_SECRET=x WEBUI_SECRET_KEY=x docker compose down
+	@# Keep the embedding model cache, it is not in the backup
+	@[ ! -d data/open-webui ] || find data/open-webui -mindepth 1 -maxdepth 1 ! -name cache -exec rm -rf {} +
+	tar -xzf "$(FILE)"
+	@echo "✓ Restored. Next: make start (or make setup if the embedding model is missing)"
 
 clean: ## Delete all local data: chats, account, settings (CAUTION). Keeps images and the model
 	@echo "Close all Open WebUI browser tabs first (a stale tab retries in a loop)."

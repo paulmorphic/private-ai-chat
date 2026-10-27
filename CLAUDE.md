@@ -32,6 +32,8 @@ Open WebUI at http://localhost:3000
 | `make logs-searxng` | Tail SearXNG logs only |
 | `make status` | Container status + resource usage |
 | `make env` | Create `.env` with random secrets (auto-runs via `make up`) |
+| `make backup` | Stops Open WebUI briefly, writes `backups/open-webui-<date>.tar.gz` (`data/open-webui` without `cache/`, plus `.env`; mode 600; `backups/` gitignored), starts it again if it was running |
+| `make restore FILE=x` | ⚠️ Asks for `yes`, then `docker compose down`, replaces `data/open-webui` (keeps `cache/`) and `.env` with the backup |
 | `make clean` | ⚠️ Asks for `yes`, then `docker compose down -v` + delete `./data` (chats, account, settings, embedding cache) |
 | `make uninstall` | ⚠️ Asks for `yes`, then removes containers, images, `./data`, `.env` and the Ollama model (Ollama itself stays) |
 | `make ollama-start` | Start Ollama daemon on 127.0.0.1 (not needed if the brew service runs) |
