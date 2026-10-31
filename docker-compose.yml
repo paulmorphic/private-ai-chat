@@ -27,7 +27,7 @@ services:
   # ─────────────────────────────────────────
   open-webui:
     # Pinned to a tested version; check env var names before upgrading (README "Upgrading")
-    image: ghcr.io/open-webui/open-webui:v0.12.4
+    image: ghcr.io/open-webui/open-webui:v0.12.5
     container_name: open-webui
     restart: unless-stopped
     ports:
@@ -70,8 +70,9 @@ services:
       - CONTEXT_COMPACTION_TOKEN_THRESHOLD=11000
       # Multilingual embedding model for picking relevant parts of fetched pages
       # (the default all-MiniLM-L6-v2 is English-only and misses Polish pages).
-      # The model is a stored setting (fresh DB only); the e5 prefixes below are
-      # read on every start. Quoted: the trailing space is part of the prefix.
+      # The model and, since v0.12.5, the e5 prefixes below are stored settings, taken
+      # from here when the DB has no value yet (Admin Settings > Documents afterwards).
+      # Quoted: the trailing space is part of the prefix.
       - RAG_EMBEDDING_MODEL=intfloat/multilingual-e5-small
       - "RAG_EMBEDDING_QUERY_PREFIX=query: "
       - "RAG_EMBEDDING_CONTENT_PREFIX=passage: "

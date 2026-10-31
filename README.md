@@ -10,7 +10,7 @@ Ollama + Open WebUI + SearXNG, set up for privacy and tuned for small models.
 
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white)](#requirements)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-000000?logo=ollama&logoColor=white)](https://ollama.com)
-[![Open WebUI](https://img.shields.io/badge/Open%20WebUI-v0.12.4-4B5563)](https://github.com/open-webui/open-webui)
+[![Open WebUI](https://img.shields.io/badge/Open%20WebUI-v0.12.5-4B5563)](https://github.com/open-webui/open-webui)
 [![SearXNG](https://img.shields.io/badge/SearXNG-Brave%20only-FB542B?logo=brave&logoColor=white)](https://github.com/searxng/searxng)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/products/docker-desktop/)
 [![Model: uncensored](https://img.shields.io/badge/Model-uncensored-7C3AED)](#why)
@@ -52,7 +52,7 @@ flowchart LR
 |---|---|
 | 🧠 [Ollama](https://ollama.com) | LLM runtime, native on Apple Silicon (Metal) |
 | 🤖 `qwen3.5-uncensored:9b-q4` | Default model: uncensored Qwen 3.5, 9B, reasoning, Q4_K_M ([HauhauCS on Hugging Face](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive), packaged for Ollama by `make setup`; [use another one](#using-another-model)) |
-| 💬 [Open WebUI](https://github.com/open-webui/open-webui) | Chat interface (Docker, pinned `v0.12.4`) |
+| 💬 [Open WebUI](https://github.com/open-webui/open-webui) | Chat interface (Docker, pinned `v0.12.5`) |
 | 🔎 [SearXNG](https://github.com/searxng/searxng) | Local search proxy to Brave Search only (Docker, pinned) |
 | 📚 [`multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) | Picks the relevant parts of fetched pages, works for non-English pages too (local, CPU) |
 
