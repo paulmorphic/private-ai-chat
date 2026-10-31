@@ -1,23 +1,23 @@
 # Open WebUI setup for a small thinking model
 
-Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `4b-fast`, follow-ups and tags off, context compaction). The `4b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested with `jaahas/qwen3.5-uncensored:4b` on an M1 with 16 GB; full fresh-install run verified 2026-10-24).
+Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `9b-fast`, follow-ups and tags off, context compaction). The `9b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested on an M1 with 16 GB: first with `jaahas/qwen3.5-uncensored:4b`, full fresh-install run verified 2026-10-24; since 2026-10-31 with `qwen3.5-uncensored:9b-q4`, built by `make ollama-pull` from a Q4_K_M GGUF on Hugging Face).
 
 ## Why this is needed
 
 With default settings, a small reasoning model is slow and web search silently does nothing:
 
 1. **Thinking on every background task.** Open WebUI calls the chat model for web-search query generation, title, tags and follow-ups. A thinking model spends ~1200 tokens reasoning on each one. Measured on the 4B model (~12 tok/s): query generation takes **~100 s with thinking, ~3 s without**. Ollama runs the calls one after another, and the reasoning is hidden in the UI, so the chat just hangs for minutes before the first token.
-2. **Native function calling.** In the default mode, web search is exposed as a tool the model has to call by itself. A 4B model does not, so it answers without sources (often claiming it only has calendar or reminder tools). **Legacy** mode makes Open WebUI search first and paste the results into the prompt.
+2. **Native function calling.** In the default mode, web search is exposed as a tool the model has to call by itself. A small model does not, so it answers without sources (often claiming it only has calendar or reminder tools). **Legacy** mode makes Open WebUI search first and paste the results into the prompt.
 
 ## Steps
 
 Fresh install (empty `data/`): run `make setup` (installs Ollama, pulls the model, downloads the embedding model once, starts everything), then create the admin account at http://localhost:3000 (the first account becomes the admin). Only step 1 is required; steps 2, 3, 3a and 3b are already applied from `docker-compose.yml` and only need checking. On an existing database the env vars are ignored, so do all steps.
 
-### 1. Create the `4b-fast` preset (required)
+### 1. Create the `9b-fast` preset (required)
 
 1. **Workspace → Models → Create** (`/workspace/models/create`).
-2. **Model Name**: `4b-fast`. The Model ID below it must also be `4b-fast` (it is what `TASK_MODEL` and `DEFAULT_MODELS` in `docker-compose.yml` point to).
-3. **Base Model (From)**: `jaahas/qwen3.5-uncensored:4b`.
+2. **Model Name**: `9b-fast`. The Model ID below it must also be `9b-fast` (it is what `TASK_MODEL`, `DEFAULT_MODELS` and `CONTEXT_COMPACTION_MODEL` in `docker-compose.yml` point to).
+3. **Base Model (From)**: `qwen3.5-uncensored:9b-q4`.
 4. Expand **Advanced Params** and set:
    - **think (Ollama)** → `Off`. The value cycles on each click: `Default → On → Custom → Off` (three clicks). `Custom` shows a text field; keep clicking until it reads `Off`.
    - **Function Calling** → `Legacy`. Cycles `Default → Native → Legacy` (two clicks).
@@ -25,21 +25,21 @@ Fresh install (empty `data/`): run `make setup` (installs Ollama, pulls the mode
 5. **Default Features** → turn on **Web Search** ("Start enabled in new chats").
 6. **Save & Create**.
 
-To change it later: **Workspace → Models → 4b-fast** (edit), then **Save & Update**.
+To change it later: **Workspace → Models → 9b-fast** (edit), then **Save & Update**.
 
-### 1b. Optional `4b-think` preset (same model, thinking on)
+### 1b. Optional `9b-think` preset (same model, thinking on)
 
-For harder questions where a slower, reasoned answer is worth it. **Workspace → Models → `⋯` next to 4b-fast → Clone**, set Model Name and Model ID to `4b-think`, switch **think (Ollama)** to `On` (from `Off`: `Default → On`), **Save & Create**. Everything else (Legacy function calling, `num_ctx` 16384, web search on by default) is copied. Background tasks still run on `4b-fast`, so only the answer itself is slow: on a 16 GB M1 a simple math question took over 3 minutes of "Thinking…" before the first word.
+For harder questions where a slower, reasoned answer is worth it. **Workspace → Models → `⋯` next to 9b-fast → Clone**, set Model Name and Model ID to `9b-think`, switch **think (Ollama)** to `On` (from `Off`: `Default → On`), **Save & Create**. Everything else (Legacy function calling, `num_ctx` 16384, web search on by default) is copied. Background tasks still run on `9b-fast`, so only the answer itself is slow: on a 16 GB M1 a simple math question took over 3 minutes of "Thinking…" before the first word (measured with the 4B model; the 9B is slower).
 
 Context with thinking: the reasoning of the answer being written counts against `num_ctx` (history + search results + reasoning + answer must fit in 16384), but reasoning from earlier answers is dropped. Measured: the same history was 90 prompt tokens with or without ~2000 tokens of earlier reasoning (Open WebUI passes it to Ollama as `thinking`, and Ollama's `qwen3.5` renderer discards it).
 
-Don't chat with the bare `jaahas/qwen3.5-uncensored:4b`: it thinks, has a 4096-token context and uses native function calling, so web search silently does nothing.
+Don't chat with the bare `qwen3.5-uncensored:9b-q4`: it thinks, has a 4096-token context and uses native function calling, so web search silently does nothing.
 
 ### 2. Background tasks (pre-seeded on a fresh DB)
 
 **Admin Panel → Settings → Interface** (`/admin/settings/interface`):
 
-- **Local Task Model** → `4b-fast`.
+- **Local Task Model** → `9b-fast`.
 - **Follow Up Generation** → off.
 - **Tags Generation** → off.
 - Leave **Title Generation**, **Retrieval Query Generation** and **Web Search Query Generation** on (they are fast once thinking is off).
@@ -50,7 +50,7 @@ Click **Save**.
 
 - **Admin Panel → Settings → Connections** (`/admin/settings/connections`): **OpenAI API** → off (saves immediately). Leave **Ollama API** on with `http://host.docker.internal:11434`. Left on, Open WebUI keeps calling `api.openai.com` to list models.
 - **Admin Panel → Settings → General** (`/admin/settings/general`): **Community Sharing** → off, then **Save**.
-- **Workspace → Models**: delete any preset whose base model is not installed (`⋯ → Delete → Confirm`). Only `4b-fast` should remain.
+- **Workspace → Models**: delete any preset whose base model is not installed (`⋯ → Delete → Confirm`). Only `9b-fast` (and `9b-think`) should remain.
 
 ### 3a. Multilingual embedding model (pre-seeded on a fresh DB)
 
@@ -62,12 +62,12 @@ Web search fetches pages, splits them into chunks, and an embedding model picks 
 
 ### 3b. Context compaction (pre-seeded on a fresh DB)
 
-Long chats would otherwise overflow `num_ctx` 16384, and Ollama silently drops the oldest messages. With compaction on, once a chat passes the token threshold, Open WebUI asks `4b-fast` to summarize the older messages and sends the summary instead of them (the chat in the UI still shows everything). The newest 40% of messages are kept as they are.
+Long chats would otherwise overflow `num_ctx` 16384, and Ollama silently drops the oldest messages. With compaction on, once a chat passes the token threshold, Open WebUI asks `9b-fast` to summarize the older messages and sends the summary instead of them (the chat in the UI still shows everything). The newest 40% of messages are kept as they are.
 
 **Admin Panel → Settings → Interface** (`/admin/settings/interface`), section **Chat**:
 
 - **Context Compaction** → on.
-- **Context Compaction Model** → `4b-fast`.
+- **Context Compaction Model** → `9b-fast`.
 - **Token Threshold** → `11000`, **Token Cap** → `11000`.
 
 Click **Save**.
@@ -75,19 +75,30 @@ Click **Save**.
 - Why 11000 and not 16384: the check runs before web search results are added (~1-3k tokens with 3 results), and the answer and the summary also need room. Keep the threshold at about two thirds of `num_ctx`; if you raise `num_ctx` in the preset, raise both values too.
 - The count is the last answer's real token usage reported by Ollama (prompt + answer) plus an estimate of the new message, so it matches what Ollama sees.
 - A per-chat threshold can be set in **Chat Controls → Advanced Params → Context Compaction Threshold** (capped by **Token Cap**). Handy for testing: set it to `300` in a temporary chat and send three messages.
-- Cost: the summary is an extra generation of up to ~30 s, only when the threshold is crossed. A 4B model may drop details, so important facts are better kept in **Settings → Personalization → Memory** or a Knowledge file.
+- Cost: the summary is an extra generation (~30 s measured on the 4B model, expect about a minute on the 9B), only when the threshold is crossed. A small model may drop details, so important facts are better kept in **Settings → Personalization → Memory** or a Knowledge file.
 - Check in the logs: `docker logs open-webui 2>&1 | grep "Compacted chat context"`.
 
 ### 4. Chat
 
-- New chats open with **4b-fast** and Web Search already on (globe icon highlighted next to `+`). If not, pick the model and toggle Web Search via the sparkles icon.
+- New chats open with **9b-fast** and Web Search already on (globe icon highlighted next to `+`). If not, pick the model and toggle Web Search via the sparkles icon.
 - A **Retrieved N sources** line above the answer confirms that the search ran. If it is missing, the search did not run.
 
 The search engine side (SearXNG, Brave only) comes from `config/searxng/settings.yml` and needs no UI setup.
 
 ## Verify
 
-Expected after the steps above, for a question with web search on: sources line after ~10-15 s, first tokens of the answer after ~25 s (up to ~45 s on the first question, while Ollama loads the model).
+Expected after the steps above, for a question with web search on: with `9b-fast` the whole answer (sources line, then the text) took about a minute in one test (2026-10-31); with the earlier 4B model the sources line came after ~10-15 s and the first tokens after ~25 s. Add up to ~20 s on the first question, while Ollama loads the model.
+
+Measured directly against Ollama on a 16 GB M1 (2026-10-31, `num_ctx` 16384, think off):
+
+| | `jaahas/qwen3.5-uncensored:4b` (Q6_K) | `qwen3.5-uncensored:9b-q4` (Q4_K_M) |
+|---|---|---|
+| Writing (eval) | 12.2 tok/s | 9.0 tok/s |
+| Reading the prompt (search results, history) | 187 tok/s | 99 tok/s |
+| RAM (`ollama ps`) | 3.9 GB | 6.1 GB, 100% GPU |
+| English replies to Polish questions (English-only role system prompt) | 6/6 | 5/6 |
+
+Ollama keeps only one of these models in RAM at a time on 16 GB; switching costs ~5 s plus the cached prompt, which is why everything (chat, tasks, compaction) runs on the same model.
 
 Check the saved settings read-only (does not touch chats):
 
@@ -102,7 +113,7 @@ for mid, p, m in c.execute("select id, params, meta from model order by id"):
 EOF
 ```
 
-Expected: `task.model.default = "4b-fast"`, `ui.default_models = "4b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "4b-fast"`, `chat.context_compaction.token_threshold = 11000`, the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
+Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
 
 Check that SearXNG only has Brave engines:
 
@@ -115,7 +126,7 @@ Expected: `['brave', 'brave.images', 'brave.news', 'brave.videos']`.
 Time the slow step directly against Ollama (the web search query generation, with and without thinking):
 
 ```bash
-curl -s http://localhost:11434/api/chat -d '{"model":"jaahas/qwen3.5-uncensored:4b","stream":false,"think":false,"messages":[{"role":"user","content":"Return JSON {\"queries\": [...]} with a web search query for: weather in Warsaw today"}]}' | python3 -c "import sys,json; r=json.load(sys.stdin); print(r['eval_count'], 'tokens,', r['total_duration']/1e9, 's')"
+curl -s http://localhost:11434/api/chat -d '{"model":"qwen3.5-uncensored:9b-q4","stream":false,"think":false,"messages":[{"role":"user","content":"Return JSON {\"queries\": [...]} with a web search query for: weather in Warsaw today"}]}' | python3 -c "import sys,json; r=json.load(sys.stdin); print(r['eval_count'], 'tokens,', r['total_duration']/1e9, 's')"
 ```
 
 Drop `"think":false` to see the thinking-mode cost. `total_duration` includes model load time, so after ~5 minutes of idle (Ollama unloads the model) the first call is much slower; run it twice and read the second result.
@@ -139,4 +150,4 @@ Notes:
 - Ollama queues requests, so a test run while a chat is generating looks much slower than it is.
 - `ollama ps` shows the context size. Ollama's default is 4096 tokens (a few pages; the whole conversation plus search results must fit, older parts are silently cut). The preset raises it to 16384; the model supports up to 262144.
 - Settings are per Open WebUI database. After `make clean`, repeat the fresh-install steps.
-- Expected external connections: Hugging Face only once, from `make setup` (a throwaway container), Brave via SearXNG, and the result pages Open WebUI fetches. Nothing else.
+- Expected external connections: Hugging Face only during `make setup` (the chat model through Ollama, the embedding model through a throwaway container), Brave via SearXNG, the update check to `api.github.com`, and the result pages Open WebUI fetches. Nothing else.

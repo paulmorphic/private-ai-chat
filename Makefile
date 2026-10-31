@@ -1,8 +1,14 @@
 .DEFAULT_GOAL := help
 
-# Model used by this stack (override: make ollama-pull OLLAMA_MODEL=...). A non-thinking
-# preset of it is created in Open WebUI, see docs/open-webui-setup.md
-OLLAMA_MODEL ?= jaahas/qwen3.5-uncensored:4b
+# Model used by this stack. Non-thinking and thinking presets of it are created in
+# Open WebUI, see docs/open-webui-setup.md
+OLLAMA_MODEL ?= qwen3.5-uncensored:9b-q4
+
+# Source of OLLAMA_MODEL: uncensored Qwen 3.5 9B, Q4_K_M GGUF from Hugging Face (the Ollama
+# library only has it as Q6_K, too big next to Docker in 16 GB). `make ollama-pull` packages it
+# like the library build (Ollama's qwen3.5 renderer/parser, so Open WebUI's think on/off works)
+# and leaves out the repo's vision projector. Set HF_MODEL= to `ollama pull` OLLAMA_MODEL as is.
+HF_MODEL ?= hf.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive:Q4_K_M
 
 # Embedding model, must match RAG_EMBEDDING_MODEL in docker-compose.yml. `make setup`
 # downloads it once through sentence-transformers, which fetches only the files it needs
@@ -30,7 +36,7 @@ setup: ## One-time install: Ollama, the model, first start (safe to re-run)
 	@if ollama list | awk 'NR>1 {print $$1}' | grep -qxF "$(OLLAMA_MODEL)"; then \
 		echo "✓ Model $(OLLAMA_MODEL) already pulled"; \
 	else \
-		echo "→ Pulling $(OLLAMA_MODEL) (~3.5 GB)"; ollama pull $(OLLAMA_MODEL); \
+		echo "→ Pulling $(OLLAMA_MODEL) (~5.6 GB)"; $(MAKE) --no-print-directory ollama-pull || exit 1; \
 	fi
 	@$(MAKE) --no-print-directory env
 	@if [ -d "$(EMBED_CACHE)" ]; then \
@@ -47,7 +53,7 @@ setup: ## One-time install: Ollama, the model, first start (safe to re-run)
 	@echo ""
 	@echo "✓ Setup done. Finish in the browser (one time, ~2 minutes):"
 	@echo "  1. Open http://localhost:3000 and create your account (the first one becomes the admin)"
-	@echo "  2. Create the 4b-fast preset: docs/open-webui-setup.md, step 1"
+	@echo "  2. Create the 9b-fast preset: docs/open-webui-setup.md, step 1"
 	@echo "  Daily use from now on: make start / make stop"
 
 start: ## Start work: make sure Ollama runs, then start the containers
@@ -119,8 +125,18 @@ ollama-stop: ## Stop Ollama
 ollama-list: ## List downloaded models
 	ollama list
 
-ollama-pull: ## Download the model ($(OLLAMA_MODEL))
+ollama-pull: ## Download the model ($(OLLAMA_MODEL), built from HF_MODEL if set)
+ifeq ($(HF_MODEL),)
 	ollama pull $(OLLAMA_MODEL)
+else
+	ollama pull $(HF_MODEL)
+	@# The first FROM is the language model; the second (if any) is the vision projector, left out
+	@blob=$$(ollama show --modelfile $(HF_MODEL) | awk '/^FROM /{print $$2; exit}'); \
+	curl -sf http://127.0.0.1:11434/api/create -d '{"model":"$(OLLAMA_MODEL)","files":{"model.gguf":"sha256:'"$${blob##*sha256-}"'"},"template":"{{ .Prompt }}","renderer":"qwen3.5","parser":"qwen3.5","parameters":{"temperature":1,"top_k":20,"top_p":0.95,"presence_penalty":1.5},"stream":false}' \
+		| grep -q success || { echo "✗ Building $(OLLAMA_MODEL) from $(HF_MODEL) failed"; exit 1; }
+	ollama rm $(HF_MODEL)
+	@echo "✓ Built $(OLLAMA_MODEL) from $(HF_MODEL)"
+endif
 
 ollama-rm: ## Remove a model (usage: make ollama-rm MODEL=model-name)
 	ollama rm $(MODEL)

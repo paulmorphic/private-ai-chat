@@ -55,18 +55,18 @@ services:
       # Privacy: no OpenAI connection, no community sharing
       - ENABLE_OPENAI_API=false
       - ENABLE_COMMUNITY_SHARING=false
-      # Background tasks use the 4b-fast preset (thinking off, created in the UI);
+      # Background tasks use the 9b-fast preset (thinking off, created in the UI);
       # follow-ups and tags are extra generations we don't need
-      - TASK_MODEL=4b-fast
-      - DEFAULT_MODELS=4b-fast
+      - TASK_MODEL=9b-fast
+      - DEFAULT_MODELS=9b-fast
       - ENABLE_FOLLOW_UP_GENERATION=false
       - ENABLE_TAGS_GENERATION=false
       # Context compaction: once a chat passes the threshold, older messages are
-      # summarized by 4b-fast and replaced by the summary (the UI still shows them).
+      # summarized by 9b-fast and replaced by the summary (the UI still shows them).
       # Checked before web search results are added, so the threshold leaves ~5k of
       # num_ctx 16384 for search results, the summary and the answer.
       - ENABLE_CONTEXT_COMPACTION=true
-      - CONTEXT_COMPACTION_MODEL=4b-fast
+      - CONTEXT_COMPACTION_MODEL=9b-fast
       - CONTEXT_COMPACTION_TOKEN_THRESHOLD=11000
       # Multilingual embedding model for picking relevant parts of fetched pages
       # (the default all-MiniLM-L6-v2 is English-only and misses Polish pages).
