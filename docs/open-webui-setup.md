@@ -58,7 +58,7 @@ Web search fetches pages, splits them into chunks, and an embedding model picks 
 
 - **Admin Panel → Settings → Documents** (`/admin/settings/documents`) → **Embedding Model**: `intfloat/multilingual-e5-small`, click the download icon next to it, then **Save**.
 - The model must already be in `data/open-webui/cache` because Open WebUI runs with Hugging Face offline. `make setup` downloads it (only the files sentence-transformers needs, ~0.5 GB; Open WebUI's own download button would fetch the whole ~2.2 GB repo with ONNX/OpenVINO copies, and with `HF_HUB_OFFLINE=1` it can't download at all).
-- e5 needs `query: ` / `passage: ` prefixes; they come from `RAG_EMBEDDING_QUERY_PREFIX` / `RAG_EMBEDDING_CONTENT_PREFIX` in `docker-compose.yml` (applied on every start, no UI setting).
+- e5 needs `query: ` / `passage: ` prefixes (with the trailing space). Since v0.12.5 they are stored settings in **Admin Panel → Settings → Documents**, seeded from `RAG_EMBEDDING_QUERY_PREFIX` / `RAG_EMBEDDING_CONTENT_PREFIX` in `docker-compose.yml` when the DB has no value yet (also on upgrading an existing DB from v0.12.4). Check them with the DB query in [Verify](#verify): `rag.embedding_query_prefix = "query: "`. Without them, retrieval on Polish pages silently gets worse.
 
 ### 3b. Context compaction (pre-seeded on a fresh DB)
 
@@ -106,14 +106,14 @@ Check the saved settings read-only (does not touch chats):
 docker exec -i open-webui python - <<'EOF'
 import sqlite3, json
 c = sqlite3.connect('file:/app/backend/data/webui.db?mode=ro', uri=True)
-for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold') order by key"):
+for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold','rag.embedding_query_prefix','rag.embedding_content_prefix') order by key"):
     print(k, "=", v)
 for mid, p, m in c.execute("select id, params, meta from model order by id"):
     print("model", mid, json.loads(p), "default features:", json.loads(m).get("defaultFeatureIds"))
 EOF
 ```
 
-Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
+Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, `rag.embedding_query_prefix = "query: "`, `rag.embedding_content_prefix = "passage: "` (trailing space included), the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
 
 Check that SearXNG only has Brave engines:
 
