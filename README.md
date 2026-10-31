@@ -32,11 +32,11 @@ Most "local" AI setups still leak: telemetry, update checks, model hubs, cloud f
 | | |
 |---|---|
 | 🧠 **Your chats stay local** | The model runs in Ollama on your Mac; conversations live in `./data`. With web search off, nothing leaves your machine. |
-| 🔓 **Uncensored by default** | Ships with an uncensored model ([`jaahas/qwen3.5-uncensored:4b`](https://ollama.com/jaahas/qwen3.5-uncensored)): no corporate guardrails, no lectures, far fewer refusals. It answers what you ask, so what you do with it is on you. Prefer a filtered model? [Swap it](#using-another-model). |
+| 🔓 **Uncensored by default** | Ships with an uncensored model ([Qwen 3.5 9B by HauhauCS](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive)): no corporate guardrails, no lectures, far fewer refusals. It answers what you ask, so what you do with it is on you. Prefer a filtered model? [Swap it](#using-another-model). |
 | 🔎 **Search leaks as little as possible** | Web search is opt-in per chat and goes through your own SearXNG to **Brave Search only**, without cookies, a profile or an account. One provider per query, never Google. It is still web search, though — see [Privacy](#privacy). |
 | 🚫 **Nothing phones home** | Telemetry off, OpenAI connection and community sharing disabled, Hugging Face offline. |
 | 🏠 **Not on your network** | Open WebUI and Ollama listen on `127.0.0.1` only. SearXNG has no host port at all. |
-| ⚡ **Actually usable on a small model** | A tuned preset makes a 4B reasoning model answer in seconds instead of minutes, with web search that really runs. |
+| ⚡ **Actually usable on a small model** | A tuned preset makes a 9B reasoning model on a 16 GB MacBook answer in under a minute instead of many, with web search that really runs. |
 
 ## 🗺️ How it works
 
@@ -51,7 +51,7 @@ flowchart LR
 | Component | Role |
 |---|---|
 | 🧠 [Ollama](https://ollama.com) | LLM runtime, native on Apple Silicon (Metal) |
-| 🤖 [`jaahas/qwen3.5-uncensored:4b`](https://ollama.com/jaahas/qwen3.5-uncensored) | Default model: uncensored Qwen 3.5, 4B, reasoning ([use another one](#using-another-model)) |
+| 🤖 `qwen3.5-uncensored:9b-q4` | Default model: uncensored Qwen 3.5, 9B, reasoning, Q4_K_M ([HauhauCS on Hugging Face](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive), packaged for Ollama by `make setup`; [use another one](#using-another-model)) |
 | 💬 [Open WebUI](https://github.com/open-webui/open-webui) | Chat interface (Docker, pinned `v0.12.4`) |
 | 🔎 [SearXNG](https://github.com/searxng/searxng) | Local search proxy to Brave Search only (Docker, pinned) |
 | 📚 [`multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) | Picks the relevant parts of fetched pages, works for non-English pages too (local, CPU) |
@@ -62,7 +62,7 @@ flowchart LR
 - 🍎 **macOS on Apple Silicon** (tested on an M1 with 16 GB). The setup relies on Homebrew, BSD `sed`, and Docker Desktop for Mac forwarding `host.docker.internal` to the host's localhost. Linux and Windows need changes, see [Platform notes](#platform-notes).
 - 🐳 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - 🍺 [Homebrew](https://brew.sh)
-- 💾 ~8 GB of free RAM while chatting (model ~3.9 GB, Open WebUI ~1.2 GB, plus Docker's VM)
+- 💾 ~10 GB of free RAM while chatting (model ~6.1 GB, Open WebUI ~1.4 GB, plus Docker's VM). On 16 GB, close heavy apps while chatting.
 
 ## 📦 Install (once)
 
@@ -80,7 +80,7 @@ make setup
 |---|---|---|
 | 1️⃣ | Checks Homebrew and Docker | |
 | 2️⃣ | Installs Ollama with Homebrew and starts it as a background service (localhost only) | |
-| 3️⃣ | Pulls the chat model `jaahas/qwen3.5-uncensored:4b` | ~3.5 GB |
+| 3️⃣ | Downloads the chat model (Q4_K_M GGUF from Hugging Face) and builds `qwen3.5-uncensored:9b-q4` in Ollama | ~5.6 GB |
 | 4️⃣ | Creates `.env` with random secrets | |
 | 5️⃣ | Downloads the embedding model from Hugging Face (only the files it needs) | ~0.5 GB |
 | 6️⃣ | Pulls the Docker images and starts Open WebUI + SearXNG | ~6 GB |
@@ -88,7 +88,7 @@ make setup
 Then finish in the browser, once (about two minutes):
 
 1. 👤 Open **http://localhost:3000** and create your account. The first account becomes the admin; it only exists on your machine.
-2. ⚙️ Create the **`4b-fast`** model preset: [docs/open-webui-setup.md](docs/open-webui-setup.md), step 1. Optionally also **`4b-think`** (step 1b).
+2. ⚙️ Create the **`9b-fast`** model preset: [docs/open-webui-setup.md](docs/open-webui-setup.md), step 1. Optionally also **`9b-think`** (step 1b).
 
 Everything else is pre-configured by `docker-compose.yml`. 🎉
 
@@ -99,8 +99,8 @@ make start   # ▶️  start Ollama (if needed) + containers, then open http://l
 make stop    # ⏹️  stop containers + unload the model from RAM
 ```
 
-- 💬 New chats open with **`4b-fast`** and web search on. A **"Retrieved N sources"** line above an answer means the search ran.
-- 🤔 For harder questions pick **`4b-think`**: same model with reasoning on. Slower (can take minutes), but more careful.
+- 💬 New chats open with **`9b-fast`** and web search on. A **"Retrieved N sources"** line above an answer means the search ran.
+- 🤔 For harder questions pick **`9b-think`**: same model with reasoning on. Slower (can take minutes), but more careful.
 - ⚠️ Don't chat with the bare base model in the model picker: without the preset settings web search doesn't work.
 - 🔕 Turn the globe icon off and the chat is fully local: nothing is sent anywhere. With it on, Brave and the result sites see your IP ([Privacy](#privacy)).
 
@@ -114,7 +114,7 @@ make backup                                   # → backups/open-webui-<date>.ta
 make restore FILE=backups/open-webui-<date>.tar.gz   # asks for yes, replaces current data
 ```
 
-A backup holds everything that can't be recreated: chats, your account, settings, presets (`4b-fast`, `4b-think`), Memory, Knowledge, Notes, and `.env`. It leaves out the embedding model (re-downloaded by `make setup`) and the Ollama model. Open WebUI stops for a few seconds while the backup is written, so the database copy is consistent.
+A backup holds everything that can't be recreated: chats, your account, settings, presets (`9b-fast`, `9b-think`), Memory, Knowledge, Notes, and `.env`. It leaves out the embedding model (re-downloaded by `make setup`) and the Ollama model. Open WebUI stops for a few seconds while the backup is written, so the database copy is consistent.
 
 > [!CAUTION]
 > Backups contain your private chats and `.env` secrets unencrypted. `backups/` is gitignored and the files are readable only by you; if you copy them elsewhere, keep them somewhere private. Run `make backup` before `make clean` or an Open WebUI upgrade.
@@ -149,7 +149,7 @@ make help          # show all available targets
 make ollama-start              # start Ollama in the background (if not using the brew service)
 make ollama-stop               # pkill Ollama (use `brew services stop ollama` to keep it off)
 make ollama-list               # list downloaded models
-make ollama-pull               # pull the model (OLLAMA_MODEL, default jaahas/qwen3.5-uncensored:4b)
+make ollama-pull               # download + build the model (OLLAMA_MODEL, default qwen3.5-uncensored:9b-q4)
 make ollama-rm MODEL=<name>    # remove a model
 make ollama-ps                 # show models loaded in RAM
 make ollama-status             # check if Ollama is running
@@ -204,16 +204,17 @@ Web search means talking to the internet, and that always leaks something:
 With Open WebUI defaults, a small reasoning model hangs for minutes and web search silently does nothing:
 
 - 🐢 Open WebUI asks the model to "think" before every background task (search query, chat title). Measured on the 4B model: **~100 s with thinking vs ~3 s without**, just to write a search query.
-- 🔧 It hands web search to the model as a tool, and a 4B model never calls it.
+- 🔧 It hands web search to the model as a tool, and a small model rarely calls it.
 
-The `4b-fast` preset turns thinking off, uses **Legacy** function calling (Open WebUI searches first and pastes the results into the prompt), and raises the context to 16k tokens. Details and measurements: [docs/open-webui-setup.md](docs/open-webui-setup.md).
+The `9b-fast` preset turns thinking off, uses **Legacy** function calling (Open WebUI searches first and pastes the results into the prompt), and raises the context to 16k tokens. Details and measurements: [docs/open-webui-setup.md](docs/open-webui-setup.md).
 
 <a id="using-another-model"></a>
 ## 🔁 Using another model
 
-1. Pull it: `make ollama-pull OLLAMA_MODEL=<name>` (or change `OLLAMA_MODEL` in the Makefile to make it the default for `make ollama-pull` and `make stop`).
-2. Create the preset as in [docs/open-webui-setup.md](docs/open-webui-setup.md) with your model as the base model. `4b-fast` is only a name; if you choose another one, change `TASK_MODEL` and `DEFAULT_MODELS` in `docker-compose.yml` to match (they only apply to a fresh `./data`; on an existing one set them in the UI).
-3. Non-reasoning models don't need the `think` setting, but Legacy function calling still helps small models with web search.
+1. Pull it: `make ollama-pull OLLAMA_MODEL=<name> HF_MODEL=` for a model from the Ollama library (or change `OLLAMA_MODEL` and `HF_MODEL` in the Makefile to make it the default for `make setup`, `make start` and `make stop`). `HF_MODEL` builds `OLLAMA_MODEL` from a Hugging Face GGUF with Ollama's Qwen 3.5 renderer, so it only fits Qwen 3.5 models.
+2. Create the preset as in [docs/open-webui-setup.md](docs/open-webui-setup.md) with your model as the base model. `9b-fast` is only a name; if you choose another one, change `TASK_MODEL`, `DEFAULT_MODELS` and `CONTEXT_COMPACTION_MODEL` in `docker-compose.yml` to match (they only apply to a fresh `./data`; on an existing one set them in the UI).
+3. Keep one model: on 16 GB Ollama holds only one in RAM, and tasks running on a different model than the chat reload models on every message.
+4. Non-reasoning models don't need the `think` setting, but Legacy function calling still helps small models with web search.
 
 <details>
 <summary>⚙️ <b>Configuration files</b></summary>
