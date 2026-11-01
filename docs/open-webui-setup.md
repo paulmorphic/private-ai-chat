@@ -1,12 +1,12 @@
 # Open WebUI setup for a small thinking model
 
-Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `9b-fast`, follow-ups and tags off, context compaction). The `9b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested on an M1 with 16 GB: first with `jaahas/qwen3.5-uncensored:4b`, full fresh-install run verified 2026-10-24; since 2026-10-31 with `qwen3.5-uncensored:9b-q4`, built by `make ollama-pull` from a Q4_K_M GGUF on Hugging Face).
+Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `9b-fast`, follow-ups and tags off, context compaction). The `9b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested with `qwen3.5-uncensored:9b-q4`, built by `make ollama-pull` from a Q4_K_M GGUF on Hugging Face, on an M1 with 16 GB).
 
 ## Why this is needed
 
 With default settings, a small reasoning model is slow and web search silently does nothing:
 
-1. **Thinking on every background task.** Open WebUI calls the chat model for web-search query generation, title, tags and follow-ups. A thinking model spends ~1200 tokens reasoning on each one. Measured on the 4B model (~12 tok/s): query generation takes **~100 s with thinking, ~3 s without**. Ollama runs the calls one after another, and the reasoning is hidden in the UI, so the chat just hangs for minutes before the first token.
+1. **Thinking on every background task.** Open WebUI calls the chat model for web-search query generation, title, tags and follow-ups. A thinking model spends ~1200 tokens reasoning on each one. At the 9B's ~9 tok/s that is roughly **two minutes per task with thinking, a few seconds without** (estimate from the token count). Ollama runs the calls one after another, and the reasoning is hidden in the UI, so the chat just hangs for minutes before the first token.
 2. **Native function calling.** In the default mode, web search is exposed as a tool the model has to call by itself. A small model does not, so it answers without sources (often claiming it only has calendar or reminder tools). **Legacy** mode makes Open WebUI search first and paste the results into the prompt.
 
 ## Steps
@@ -29,7 +29,7 @@ To change it later: **Workspace → Models → 9b-fast** (edit), then **Save & U
 
 ### 1b. Optional `9b-think` preset (same model, thinking on)
 
-For harder questions where a slower, reasoned answer is worth it. **Workspace → Models → `⋯` next to 9b-fast → Clone**, set Model Name and Model ID to `9b-think`, switch **think (Ollama)** to `On` (from `Off`: `Default → On`), **Save & Create**. Everything else (Legacy function calling, `num_ctx` 16384, web search on by default) is copied. Background tasks still run on `9b-fast`, so only the answer itself is slow: on a 16 GB M1 a simple math question took over 3 minutes of "Thinking…" before the first word (measured with the 4B model; the 9B is slower).
+For harder questions where a slower, reasoned answer is worth it. **Workspace → Models → `⋯` next to 9b-fast → Clone**, set Model Name and Model ID to `9b-think`, switch **think (Ollama)** to `On` (from `Off`: `Default → On`), **Save & Create**. Everything else (Legacy function calling, `num_ctx` 16384, web search on by default) is copied. Background tasks still run on `9b-fast`, so only the answer itself is slow: even a simple question can take minutes of "Thinking…" before the first word.
 
 Context with thinking: the reasoning of the answer being written counts against `num_ctx` (history + search results + reasoning + answer must fit in 16384), but reasoning from earlier answers is dropped. Measured: the same history was 90 prompt tokens with or without ~2000 tokens of earlier reasoning (Open WebUI passes it to Ollama as `thinking`, and Ollama's `qwen3.5` renderer discards it).
 
@@ -75,7 +75,7 @@ Click **Save**.
 - Why 11000 and not 16384: the check runs before web search results are added (~1-3k tokens with 3 results), and the answer and the summary also need room. Keep the threshold at about two thirds of `num_ctx`; if you raise `num_ctx` in the preset, raise both values too.
 - The count is the last answer's real token usage reported by Ollama (prompt + answer) plus an estimate of the new message, so it matches what Ollama sees.
 - A per-chat threshold can be set in **Chat Controls → Advanced Params → Context Compaction Threshold** (capped by **Token Cap**). Handy for testing: set it to `300` in a temporary chat and send three messages.
-- Cost: the summary is an extra generation (~30 s measured on the 4B model, expect about a minute on the 9B), only when the threshold is crossed. A small model may drop details, so important facts are better kept in **Settings → Personalization → Memory** or a Knowledge file.
+- Cost: the summary is an extra generation that reads the whole history once, only when the threshold is crossed. At ~99 tok/s prompt reading that is roughly two minutes for ~11k tokens (estimate). A small model may drop details, so important facts are better kept in **Settings → Personalization → Memory** or a Knowledge file.
 - Check in the logs: `docker logs open-webui 2>&1 | grep "Compacted chat context"`.
 
 ### 4. Chat
@@ -87,18 +87,18 @@ The search engine side (SearXNG, Brave only) comes from `config/searxng/settings
 
 ## Verify
 
-Expected after the steps above, for a question with web search on: with `9b-fast` the whole answer (sources line, then the text) took about a minute in one test (2026-10-31); with the earlier 4B model the sources line came after ~10-15 s and the first tokens after ~25 s. Add up to ~20 s on the first question, while Ollama loads the model.
+Expected after the steps above, for a question with web search on: with `9b-fast` the whole answer (sources line, then the text) took about 1-1.5 minutes in two tests (2026-10-31, 2026-11-01). In the second one, the search and page fetching took ~30 s and embedding the 190 page chunks on CPU another ~30 s before the model started reading. Add up to ~20 s on the first question, while Ollama loads the model.
 
 Measured directly against Ollama on a 16 GB M1 (2026-10-31, `num_ctx` 16384, think off):
 
-| | `jaahas/qwen3.5-uncensored:4b` (Q6_K) | `qwen3.5-uncensored:9b-q4` (Q4_K_M) |
-|---|---|---|
-| Writing (eval) | 12.2 tok/s | 9.0 tok/s |
-| Reading the prompt (search results, history) | 187 tok/s | 99 tok/s |
-| RAM (`ollama ps`) | 3.9 GB | 6.1 GB, 100% GPU |
-| English replies to Polish questions (English-only role system prompt) | 6/6 | 5/6 |
+| `qwen3.5-uncensored:9b-q4` (Q4_K_M) | |
+|---|---|
+| Writing (eval) | 9.0 tok/s |
+| Reading the prompt (search results, history) | 99 tok/s |
+| RAM (`ollama ps`) | 6.1 GB, 100% GPU |
+| English replies to Polish questions (English-only role system prompt) | 5/6 |
 
-Ollama keeps only one of these models in RAM at a time on 16 GB; switching costs ~5 s plus the cached prompt, which is why everything (chat, tasks, compaction) runs on the same model.
+Ollama keeps only one model of this size in RAM at a time on 16 GB; switching costs ~5 s plus the cached prompt, which is why everything (chat, tasks, compaction) runs on the same model.
 
 Check the saved settings read-only (does not touch chats):
 
