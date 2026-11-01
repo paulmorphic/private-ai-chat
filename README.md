@@ -36,7 +36,7 @@ Most "local" AI setups still leak: telemetry, update checks, model hubs, cloud f
 | 🔎 **Search leaks as little as possible** | Web search is opt-in per chat and goes through your own SearXNG to **Brave Search only**, without cookies, a profile or an account. One provider per query, never Google. It is still web search, though — see [Privacy](#privacy). |
 | 🚫 **Nothing phones home** | Telemetry off, OpenAI connection and community sharing disabled, Hugging Face offline. |
 | 🏠 **Not on your network** | Open WebUI and Ollama listen on `127.0.0.1` only. SearXNG has no host port at all. |
-| ⚡ **Actually usable on a small model** | A tuned preset makes a 9B reasoning model on a 16 GB MacBook answer in under a minute instead of many, with web search that really runs. |
+| ⚡ **Actually usable on a small model** | A tuned preset makes a 9B reasoning model on a 16 GB MacBook answer in about a minute instead of many, with web search that really runs. |
 
 ## 🗺️ How it works
 
@@ -203,7 +203,7 @@ Web search means talking to the internet, and that always leaks something:
 
 With Open WebUI defaults, a small reasoning model hangs for minutes and web search silently does nothing:
 
-- 🐢 Open WebUI asks the model to "think" before every background task (search query, chat title). Measured on the 4B model: **~100 s with thinking vs ~3 s without**, just to write a search query.
+- 🐢 Open WebUI asks the model to "think" before every background task (search query, chat title). Writing a single search query takes **minutes with thinking vs seconds without**.
 - 🔧 It hands web search to the model as a tool, and a small model rarely calls it.
 
 The `9b-fast` preset turns thinking off, uses **Legacy** function calling (Open WebUI searches first and pastes the results into the prompt), and raises the context to 16k tokens. Details and measurements: [docs/open-webui-setup.md](docs/open-webui-setup.md).
