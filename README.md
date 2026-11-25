@@ -10,7 +10,7 @@ Ollama + Open WebUI + SearXNG, set up for privacy and tuned for small models.
 
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white)](#requirements)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-000000?logo=ollama&logoColor=white)](https://ollama.com)
-[![Open WebUI](https://img.shields.io/badge/Open%20WebUI-v0.12.5-4B5563)](https://github.com/open-webui/open-webui)
+[![Open WebUI](https://img.shields.io/badge/Open%20WebUI-v0.13.5-4B5563)](https://github.com/open-webui/open-webui)
 [![SearXNG](https://img.shields.io/badge/SearXNG-Brave%20only-FB542B?logo=brave&logoColor=white)](https://github.com/searxng/searxng)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/products/docker-desktop/)
 [![Model: uncensored](https://img.shields.io/badge/Model-uncensored-7C3AED)](#why)
@@ -52,7 +52,7 @@ flowchart LR
 |---|---|
 | 🧠 [Ollama](https://ollama.com) | LLM runtime, native on Apple Silicon (Metal) |
 | 🤖 `qwen3.5-uncensored:9b-q4` | Default model: uncensored Qwen 3.5, 9B, reasoning, Q4_K_M ([HauhauCS on Hugging Face](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive), packaged for Ollama by `make setup`; [use another one](#using-another-model)) |
-| 💬 [Open WebUI](https://github.com/open-webui/open-webui) | Chat interface (Docker, pinned `v0.12.5`) |
+| 💬 [Open WebUI](https://github.com/open-webui/open-webui) | Chat interface (Docker, pinned `v0.13.5`) |
 | 🔎 [SearXNG](https://github.com/searxng/searxng) | Local search proxy to Brave Search only (Docker, pinned) |
 | 📚 [`multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) | Picks the relevant parts of fetched pages, works for non-English pages too (local, CPU) |
 
@@ -233,9 +233,10 @@ The `9b-fast` preset turns thinking off, uses **Legacy** function calling (Open 
 
 Images are pinned to tested versions in `docker-compose.yml`. To upgrade:
 
-1. Change the tags (Open WebUI: [releases](https://github.com/open-webui/open-webui/releases); SearXNG: [Docker Hub tags](https://hub.docker.com/r/searxng/searxng/tags)).
-2. Check the Open WebUI release notes for renamed environment variables. Older releases used `ENABLE_RAG_WEB_SEARCH` / `RAG_WEB_SEARCH_ENGINE`; current ones ignore them, which silently disables web search on a fresh install.
-3. `make up`, then run the checks in [docs/open-webui-setup.md](docs/open-webui-setup.md#verify).
+1. `make backup`. Open WebUI releases often migrate the database one way (v0.13 moved chat messages into a new table), so going back to an older image means `make restore FILE=...` of a backup made before the upgrade.
+2. Change the tags (Open WebUI: [releases](https://github.com/open-webui/open-webui/releases); SearXNG: [Docker Hub tags](https://hub.docker.com/r/searxng/searxng/tags)).
+3. Check the Open WebUI release notes for renamed environment variables. Older releases used `ENABLE_RAG_WEB_SEARCH` / `RAG_WEB_SEARCH_ENGINE`; current ones ignore them, which silently disables web search on a fresh install.
+4. `make up`, then run the checks in [docs/open-webui-setup.md](docs/open-webui-setup.md#verify).
 
 </details>
 

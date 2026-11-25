@@ -1,6 +1,6 @@
 # Open WebUI setup for a small thinking model
 
-Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, task model and default model `9b-fast`, follow-ups and tags off, context compaction). The `9b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested with `qwen3.5-uncensored:9b-q4`, built by `make ollama-pull` from a Q4_K_M GGUF on Hugging Face, on an M1 with 16 GB).
+Open WebUI settings live in its database (`data/open-webui/webui.db`), not in this repo. On a fresh `data/`, `docker-compose.yml` pre-seeds most of them (web search via SearXNG, OpenAI off, community sharing off, automations off, task model and default model `9b-fast`, follow-ups and tags off, context compaction). The `9b-fast` preset itself can only be created in the UI. This page lists everything needed to get fast, working, private web search with a small local model (tested with `qwen3.5-uncensored:9b-q4`, built by `make ollama-pull` from a Q4_K_M GGUF on Hugging Face, on an M1 with 16 GB).
 
 ## Why this is needed
 
@@ -49,7 +49,7 @@ Click **Save**.
 ### 3. Privacy settings (pre-seeded on a fresh DB)
 
 - **Admin Panel → Settings → Connections** (`/admin/settings/connections`): **OpenAI API** → off (saves immediately). Leave **Ollama API** on with `http://host.docker.internal:11434`. Left on, Open WebUI keeps calling `api.openai.com` to list models.
-- **Admin Panel → Settings → General** (`/admin/settings/general`): **Community Sharing** → off, then **Save**.
+- **Admin Panel → Settings → General** (`/admin/settings/general`): **Community Sharing** → off, **Automations** → off (since v0.13, on by default; turn off **Automation Webhooks** first, it is only shown while Automations is on), then **Save** and confirm.
 - **Workspace → Models**: delete any preset whose base model is not installed (`⋯ → Delete → Confirm`). Only `9b-fast` (and `9b-think`) should remain.
 
 ### 3a. Multilingual embedding model (pre-seeded on a fresh DB)
@@ -106,14 +106,14 @@ Check the saved settings read-only (does not touch chats):
 docker exec -i open-webui python - <<'EOF'
 import sqlite3, json
 c = sqlite3.connect('file:/app/backend/data/webui.db?mode=ro', uri=True)
-for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold','rag.embedding_query_prefix','rag.embedding_content_prefix') order by key"):
+for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','automations.enable','automations.webhooks.enable','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold','rag.embedding_query_prefix','rag.embedding_content_prefix') order by key"):
     print(k, "=", v)
 for mid, p, m in c.execute("select id, params, meta from model order by id"):
     print("model", mid, json.loads(p), "default features:", json.loads(m).get("defaultFeatureIds"))
 EOF
 ```
 
-Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, `rag.embedding_query_prefix = "query: "`, `rag.embedding_content_prefix = "passage: "` (trailing space included), the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
+Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `automations.enable = false`, `automations.webhooks.enable = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, `rag.embedding_query_prefix = "query: "`, `rag.embedding_content_prefix = "passage: "` (trailing space included), the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
 
 Check that SearXNG only has Brave engines:
 

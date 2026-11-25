@@ -27,7 +27,7 @@ services:
   # ─────────────────────────────────────────
   open-webui:
     # Pinned to a tested version; check env var names before upgrading (README "Upgrading")
-    image: ghcr.io/open-webui/open-webui:v0.12.5
+    image: ghcr.io/open-webui/open-webui:v0.13.5
     container_name: open-webui
     restart: unless-stopped
     ports:
@@ -61,6 +61,10 @@ services:
       - DEFAULT_MODELS=9b-fast
       - ENABLE_FOLLOW_UP_GENERATION=false
       - ENABLE_TAGS_GENERATION=false
+      # Automations (v0.13: scheduled tasks and their webhook trigger URLs) are on by
+      # default; not used here, so off to keep the surface small
+      - ENABLE_AUTOMATIONS=false
+      - ENABLE_AUTOMATION_WEBHOOKS=false
       # Context compaction: once a chat passes the threshold, older messages are
       # summarized by 9b-fast and replaced by the summary (the UI still shows them).
       # Checked before web search results are added, so the threshold leaves ~5k of
