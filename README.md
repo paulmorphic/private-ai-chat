@@ -11,7 +11,7 @@ Ollama + Open WebUI + SearXNG, set up for privacy and tuned for small models.
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white)](#requirements)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-000000?logo=ollama&logoColor=white)](https://ollama.com)
 [![Open WebUI](https://img.shields.io/badge/Open%20WebUI-v0.13.5-4B5563)](https://github.com/open-webui/open-webui)
-[![SearXNG](https://img.shields.io/badge/SearXNG-Brave%20only-FB542B?logo=brave&logoColor=white)](https://github.com/searxng/searxng)
+[![SearXNG](https://img.shields.io/badge/SearXNG-DuckDuckGo%20only-DE5833?logo=duckduckgo&logoColor=white)](https://github.com/searxng/searxng)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/products/docker-desktop/)
 [![Model: uncensored](https://img.shields.io/badge/Model-uncensored-7C3AED)](#why)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
@@ -33,7 +33,7 @@ Most "local" AI setups still leak: telemetry, update checks, model hubs, cloud f
 |---|---|
 | 🧠 **Your chats stay local** | The model runs in Ollama on your Mac; conversations live in `./data`. With web search off, nothing leaves your machine. |
 | 🔓 **Uncensored by default** | Ships with an uncensored model ([Qwen 3.5 9B by HauhauCS](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive)): no corporate guardrails, no lectures, far fewer refusals. It answers what you ask, so what you do with it is on you. Prefer a filtered model? [Swap it](#using-another-model). |
-| 🔎 **Search leaks as little as possible** | Web search is opt-in per chat and goes through your own SearXNG to **Brave Search only**, without cookies, a profile or an account. One provider per query, never Google. It is still web search, though — see [Privacy](#privacy). |
+| 🔎 **Search leaks as little as possible** | Web search is opt-in per chat and goes through your own SearXNG to **DuckDuckGo only**, without cookies, a profile or an account. One provider per query, never Google. It is still web search, though — see [Privacy](#privacy). |
 | 🚫 **Nothing phones home** | Telemetry off, OpenAI connection and community sharing disabled, Hugging Face offline. |
 | 🏠 **Not on your network** | Open WebUI and Ollama listen on `127.0.0.1` only. SearXNG has no host port at all. |
 | ⚡ **Actually usable on a small model** | A tuned preset makes a 9B reasoning model on a 16 GB MacBook answer in about a minute instead of many, with web search that really runs. |
@@ -45,7 +45,7 @@ flowchart LR
     You["🧑 You<br/>(browser)"] -->|"localhost:3000"| WebUI["💬 Open WebUI<br/>Docker"]
     WebUI -->|"host.docker.internal:11434"| Ollama["🧠 Ollama<br/>native · Metal GPU"]
     WebUI -->|"searxng:8080<br/>only when web search is on"| SearXNG["🔎 SearXNG<br/>Docker · no host port"]
-    SearXNG -->|"HTTPS"| Brave["🦁 Brave Search"]
+    SearXNG -->|"HTTPS"| DDG["🦆 DuckDuckGo"]
 ```
 
 | Component | Role |
@@ -53,7 +53,7 @@ flowchart LR
 | 🧠 [Ollama](https://ollama.com) | LLM runtime, native on Apple Silicon (Metal) |
 | 🤖 `qwen3.5-uncensored:9b-q4` | Default model: uncensored Qwen 3.5, 9B, reasoning, Q4_K_M ([HauhauCS on Hugging Face](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive), packaged for Ollama by `make setup`; [use another one](#using-another-model)) |
 | 💬 [Open WebUI](https://github.com/open-webui/open-webui) | Chat interface (Docker, pinned `v0.13.5`) |
-| 🔎 [SearXNG](https://github.com/searxng/searxng) | Local search proxy to Brave Search only (Docker, pinned) |
+| 🔎 [SearXNG](https://github.com/searxng/searxng) | Local search proxy to DuckDuckGo only (Docker, pinned) |
 | 📚 [`multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) | Picks the relevant parts of fetched pages, works for non-English pages too (local, CPU) |
 
 <a id="requirements"></a>
@@ -102,7 +102,7 @@ make stop    # ⏹️  stop containers + unload the model from RAM
 - 💬 New chats open with **`9b-fast`** and web search on. A **"Retrieved N sources"** line above an answer means the search ran.
 - 🤔 For harder questions pick **`9b-think`**: same model with reasoning on. Slower (can take minutes), but more careful.
 - ⚠️ Don't chat with the bare base model in the model picker: without the preset settings web search doesn't work.
-- 🔕 Turn the globe icon off and the chat is fully local: nothing is sent anywhere. With it on, Brave and the result sites see your IP ([Privacy](#privacy)).
+- 🔕 Turn the globe icon off and the chat is fully local: nothing is sent anywhere. With it on, DuckDuckGo and the result sites see your IP ([Privacy](#privacy)).
 
 > [!TIP]
 > The model only takes RAM while in use, and Ollama unloads it by itself after 5 minutes idle. To free everything, run `make stop` and quit Docker Desktop. Without `make stop`, the containers come back on their own next time Docker starts.
@@ -178,9 +178,9 @@ The prompt, the model, the answer and the history all stay on your Mac. Nothing 
 
 Web search means talking to the internet, and that always leaks something:
 
-- 🦁 **Brave sees your search queries and your IP address.** SearXNG strips cookies and browser fingerprinting, but it can't hide where the request comes from. The queries are generated from your question, so they reveal what you are asking about.
+- 🦆 **DuckDuckGo sees your search queries and your IP address.** SearXNG strips cookies and browser fingerprinting, but it can't hide where the request comes from. The queries are generated from your question, so they reveal what you are asking about. DuckDuckGo gets most results from Bing, so Microsoft sees the query too, but not your IP.
 - 🌍 **The sites in the results see your IP too.** Open WebUI downloads the top results to read them, just like you visiting those pages.
-- 🔐 **Use a VPN** if that matters to you. It hides your IP from Brave and from those sites (the VPN provider then sees the traffic instead, so pick one you trust). Tor is stronger but much slower, and search engines often block it.
+- 🔐 **Use a VPN** if that matters to you. It hides your IP from DuckDuckGo and from those sites (the VPN provider then sees the traffic instead, so pick one you trust). Tor is stronger but much slower, and search engines often block it.
 - 🧭 If a question is sensitive, turn the globe icon off for that chat.
 
 ### 📋 Details
@@ -188,7 +188,7 @@ Web search means talking to the internet, and that always leaks something:
 | | What happens |
 |---|---|
 | 🧠 Chat | Runs in Ollama on your Mac. History is stored in `./data/open-webui/webui.db` (not encrypted; FileVault protects it at rest). |
-| 🔎 Web search | Only when the globe icon is on. Query → your SearXNG → **Brave Search**. No cookies, no profile, no other engines, but your IP is visible. |
+| 🔎 Web search | Only when the globe icon is on. Query → your SearXNG → **DuckDuckGo**. No cookies, no profile, no other engines, but your IP is visible. |
 | 🌐 Result pages | Fetched directly by Open WebUI; the sites see your IP. |
 | 📚 Embeddings | `multilingual-e5-small`, runs locally on CPU. Downloaded once by `make setup`; Open WebUI always runs with Hugging Face offline. |
 | 🚫 Telemetry | Off. OpenAI connection and community sharing disabled. |
@@ -197,7 +197,9 @@ Web search means talking to the internet, and that always leaks something:
 | 📥 Downloads | Docker images, the Ollama model and the embedding model are downloaded once during setup. |
 
 > [!NOTE]
-> Brave rate-limits an IP after many searches in a short time (e.g. heavy testing). SearXNG then pauses Brave for up to an hour and web search returns no results until then. Normal use doesn't hit the limit.
+> DuckDuckGo blocks an IP with a CAPTCHA after many searches in a short time (e.g. heavy testing). SearXNG then pauses it and web search returns no results until then. Normal use doesn't hit the limit.
+>
+> Brave Search was used until November 2026. Brave now hides result links behind its own `/go/v1/...` redirects, which SearXNG can't turn back into real URLs ([searxng/searxng#6967](https://github.com/searxng/searxng/issues/6967)), so it was replaced by DuckDuckGo.
 
 ## 🤔 Why the preset matters
 
@@ -222,7 +224,7 @@ The `9b-fast` preset turns thinking off, uses **Legacy** function calling (Open 
 | File | What it holds |
 |---|---|
 | `docker-compose.yml` | Pinned images, localhost-only ports, Open WebUI settings pre-seeded on a fresh database (web search, privacy, task/default model, embedding model) |
-| `config/searxng/settings.yml` | SearXNG overrides: JSON format, Brave only, metrics off |
+| `config/searxng/settings.yml` | SearXNG overrides: JSON format, DuckDuckGo only, metrics off |
 | `.env` | Random secrets (`SEARXNG_SECRET`, `WEBUI_SECRET_KEY`) generated by `make env`. Not versioned; template in `.env.example` |
 | `data/` | Runtime data: Open WebUI database, embedding model cache. Not versioned |
 

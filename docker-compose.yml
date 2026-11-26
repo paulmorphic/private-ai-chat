@@ -5,7 +5,7 @@ services:
   # ─────────────────────────────────────────
   searxng:
     # Pinned to a tested version; see README "Upgrading"
-    image: searxng/searxng:2026.10.23-629368e40
+    image: searxng/searxng:2026.11.23-a7163d091
     container_name: searxng
     restart: unless-stopped
     volumes:

@@ -83,7 +83,7 @@ Click **Save**.
 - New chats open with **9b-fast** and Web Search already on (globe icon highlighted next to `+`). If not, pick the model and toggle Web Search via the sparkles icon.
 - A **Retrieved N sources** line above the answer confirms that the search ran. If it is missing, the search did not run.
 
-The search engine side (SearXNG, Brave only) comes from `config/searxng/settings.yml` and needs no UI setup.
+The search engine side (SearXNG, DuckDuckGo only) comes from `config/searxng/settings.yml` and needs no UI setup.
 
 ## Verify
 
@@ -115,13 +115,13 @@ EOF
 
 Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `automations.enable = false`, `automations.webhooks.enable = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, `rag.embedding_query_prefix = "query: "`, `rag.embedding_content_prefix = "passage: "` (trailing space included), the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
 
-Check that SearXNG only has Brave engines:
+Check that SearXNG only has DuckDuckGo engines:
 
 ```bash
 docker exec open-webui python -c "import urllib.request,json; c=json.load(urllib.request.urlopen('http://searxng:8080/config')); print(sorted(e['name'] for e in c['engines'] if e.get('enabled')))"
 ```
 
-Expected: `['brave', 'brave.images', 'brave.news', 'brave.videos']`.
+Expected: `['duckduckgo', 'duckduckgo images', 'duckduckgo news', 'duckduckgo videos']`.
 
 Time the slow step directly against Ollama (the web search query generation, with and without thinking):
 
@@ -142,7 +142,8 @@ Drop `"think":false` to see the thinking-mode cost. `total_duration` includes mo
 | Sources are from the wrong date | Search result quality and model size, not configuration. |
 | Source is right but the answer says the data is missing (e.g. train prices) | The page loads that data with JavaScript; the web loader only sees the static HTML. Not fixable by configuration. |
 | Logs flooded with `401` on `/api/tasks/chat/...` and `/api/v1/channels/` (thousands per minute) | A browser tab still open from before a reset (old session, old chat id) retrying in a loop. Reload or close old Open WebUI tabs. |
-| No sources at all; `docker compose logs searxng` shows `HTTP Request failed: GET https://search.brave.com/...`, and the SearXNG JSON has `unresponsive_engines: [['brave', 'Suspended: too many requests']]` | Brave rate-limited your IP (many searches in a short time, e.g. while testing). SearXNG then suspends Brave for up to an hour and search returns nothing until then. Wait, or change IP (VPN). |
+| No sources at all; the SearXNG JSON has `unresponsive_engines: [['duckduckgo', 'CAPTCHA']]` | DuckDuckGo blocked your IP (many searches in a short time, e.g. while testing), or the SearXNG image is older than 2026.11.15 (no firefox impersonation for DDG, every query gets a CAPTCHA). Wait, change IP (VPN), or upgrade SearXNG. |
+| "Something went wrong while searching the web"; Open WebUI logs `All provided URLs were blocked or invalid: ['http:///go/v1/...']` | Brave web engine enabled: Brave cloaks result URLs since 2026-11 (searxng/searxng#6967). Keep it out of `keep_only`. |
 | Web search disabled on a fresh install | `docker-compose.yml` must use `ENABLE_WEB_SEARCH` / `WEB_SEARCH_ENGINE` (older `ENABLE_RAG_WEB_SEARCH` / `RAG_WEB_SEARCH_ENGINE` names are ignored by current Open WebUI). |
 
 Notes:
@@ -150,4 +151,4 @@ Notes:
 - Ollama queues requests, so a test run while a chat is generating looks much slower than it is.
 - `ollama ps` shows the context size. Ollama's default is 4096 tokens (a few pages; the whole conversation plus search results must fit, older parts are silently cut). The preset raises it to 16384; the model supports up to 262144.
 - Settings are per Open WebUI database. After `make clean`, repeat the fresh-install steps.
-- Expected external connections: Hugging Face only during `make setup` (the chat model through Ollama, the embedding model through a throwaway container), Brave via SearXNG, the update check to `api.github.com`, and the result pages Open WebUI fetches. Nothing else.
+- Expected external connections: Hugging Face only during `make setup` (the chat model through Ollama, the embedding model through a throwaway container), DuckDuckGo via SearXNG, the update check to `api.github.com`, and the result pages Open WebUI fetches. Nothing else.
