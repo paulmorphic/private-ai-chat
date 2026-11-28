@@ -2,14 +2,23 @@
 # Only list what differs from the defaults, so image upgrades stay painless.
 use_default_settings:
   engines:
-    # DuckDuckGo only (one provider per query). Brave web was dropped in 2026-11:
-    # Brave cloaks result URLs as /go/v1/... redirects, which SearXNG can't resolve
-    # (searxng/searxng#6967; upstream disabled the engine).
+    # DuckDuckGo plus Mojeek (own index, no tracking, not Google-backed). Brave web
+    # was dropped in 2026-11: Brave cloaks result URLs as /go/v1/... redirects, which
+    # SearXNG can't resolve (searxng/searxng#6967; upstream disabled the engine).
+    # Mojeek was added in 2026-11 because DuckDuckGo answers CAPTCHA to every query
+    # on this SearXNG version (searxng/searxng#6986).
     keep_only:
       - duckduckgo
       - duckduckgo images
       - duckduckgo videos
       - duckduckgo news
+      - mojeek
+
+engines:
+  # Inactive in the image defaults because Mojeek asks for a proof-of-work CAPTCHA;
+  # SearXNG solves it itself (a few PBKDF2 rounds) and caches the cookie
+  - name: mojeek
+    inactive: false
 
 general:
   enable_metrics: false
@@ -19,6 +28,11 @@ search:
   formats:
     - html
     - json
+
+outgoing:
+  # Default 3 s; DuckDuckGo sometimes takes longer and then every query of a chat
+  # comes back empty ("No results found from web search")
+  request_timeout: 6.0
 
 server:
   # internal-only, no bot protection needed

@@ -52,6 +52,32 @@ services:
       - ENABLE_WEB_SEARCH=true
       - WEB_SEARCH_ENGINE=searxng
       - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>&format=json
+      # DuckDuckGo answers a CAPTCHA after a few queries in quick succession, and the
+      # default query prompt asks for 1-3 queries per question, all sent at once. So:
+      # exactly one query per question, and searches one after another if the model
+      # still returns more. Same text as Admin Settings > Interface > Query Generation Prompt.
+      - WEB_SEARCH_CONCURRENT_REQUESTS=1
+      - |-
+        QUERY_GENERATION_PROMPT_TEMPLATE=### Task:
+        Analyze the chat history and decide whether a web search is needed. If it is, write **exactly one** short search query, in the language of the user's last message, that is most likely to find the answer. If no search is needed, return an empty list.
+
+        ### Guidelines:
+        - Respond **EXCLUSIVELY** with a JSON object. Any extra text is strictly prohibited.
+        - Return at most one query: { "queries": ["query"] }, or { "queries": [] } if no search is needed.
+        - Write the query the way a person types into a search engine: a few key words, no explanations.
+        - Err on the side of searching if there is any chance it gives useful or up-to-date information.
+        - Today's date is: {{CURRENT_DATE}}.
+
+        ### Output:
+        Strictly return in JSON format:
+        {
+          "queries": ["query"]
+        }
+
+        ### Chat History:
+        <chat_history>
+        {{MESSAGES:END:6}}
+        </chat_history>
       # Privacy: no OpenAI connection, no community sharing
       - ENABLE_OPENAI_API=false
       - ENABLE_COMMUNITY_SHARING=false

@@ -43,8 +43,11 @@ Don't chat with the bare `qwen3.5-uncensored:9b-q4`: it thinks, has a 4096-token
 - **Follow Up Generation** → off.
 - **Tags Generation** → off.
 - Leave **Title Generation**, **Retrieval Query Generation** and **Web Search Query Generation** on (they are fast once thinking is off).
+- **Query Generation Prompt** → the `QUERY_GENERATION_PROMPT_TEMPLATE` text from `docker-compose.yml` (everything after the `=`, without the YAML indentation). It asks for exactly one search query instead of the default 1-3: DuckDuckGo answers a CAPTCHA after a few queries in quick succession, and the default sends up to three at once for every question.
 
 Click **Save**.
+
+**Admin Panel → Settings → Web Search** (`/admin/settings/web`): **Concurrent Requests** → `1` (searches one after another if the model still returns several queries), then **Save**.
 
 ### 3. Privacy settings (pre-seeded on a fresh DB)
 
@@ -83,7 +86,7 @@ Click **Save**.
 - New chats open with **9b-fast** and Web Search already on (globe icon highlighted next to `+`). If not, pick the model and toggle Web Search via the sparkles icon.
 - A **Retrieved N sources** line above the answer confirms that the search ran. If it is missing, the search did not run.
 
-The search engine side (SearXNG, DuckDuckGo only) comes from `config/searxng/settings.yml` and needs no UI setup.
+The search engine side (SearXNG, DuckDuckGo and Mojeek) comes from `config/searxng/settings.yml` and needs no UI setup.
 
 ## Verify
 
@@ -106,22 +109,22 @@ Check the saved settings read-only (does not touch chats):
 docker exec -i open-webui python - <<'EOF'
 import sqlite3, json
 c = sqlite3.connect('file:/app/backend/data/webui.db?mode=ro', uri=True)
-for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','openai.enable','ui.enable_community_sharing','automations.enable','automations.webhooks.enable','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold','rag.embedding_query_prefix','rag.embedding_content_prefix') order by key"):
+for k, v in c.execute("select key, value from config where key in ('task.model.default','ui.default_models','rag.embedding_model','task.follow_up.enable','task.tags.enable','web.search.concurrent_requests','openai.enable','ui.enable_community_sharing','automations.enable','automations.webhooks.enable','web.search.enable','web.search.engine','chat.context_compaction.enable','chat.context_compaction.model','chat.context_compaction.token_threshold','rag.embedding_query_prefix','rag.embedding_content_prefix') order by key"):
     print(k, "=", v)
 for mid, p, m in c.execute("select id, params, meta from model order by id"):
     print("model", mid, json.loads(p), "default features:", json.loads(m).get("defaultFeatureIds"))
 EOF
 ```
 
-Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `openai.enable = false`, `ui.enable_community_sharing = false`, `automations.enable = false`, `automations.webhooks.enable = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, `rag.embedding_query_prefix = "query: "`, `rag.embedding_content_prefix = "passage: "` (trailing space included), the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
+Expected: `task.model.default = "9b-fast"`, `ui.default_models = "9b-fast"`, `rag.embedding_model = "intfloat/multilingual-e5-small"`, `web.search.enable = true`, `web.search.engine = "searxng"`, `task.follow_up.enable = false`, `task.tags.enable = false`, `web.search.concurrent_requests = 1`, `openai.enable = false`, `ui.enable_community_sharing = false`, `automations.enable = false`, `automations.webhooks.enable = false`, `chat.context_compaction.enable = true`, `chat.context_compaction.model = "9b-fast"`, `chat.context_compaction.token_threshold = 11000`, `rag.embedding_query_prefix = "query: "`, `rag.embedding_content_prefix = "passage: "` (trailing space included), the model params contain `'think': False`, `'function_calling': 'legacy'` and `'num_ctx': 16384`, and default features `['web_search']`.
 
-Check that SearXNG only has DuckDuckGo engines:
+Check that SearXNG only has the DuckDuckGo engines and Mojeek:
 
 ```bash
 docker exec open-webui python -c "import urllib.request,json; c=json.load(urllib.request.urlopen('http://searxng:8080/config')); print(sorted(e['name'] for e in c['engines'] if e.get('enabled')))"
 ```
 
-Expected: `['duckduckgo', 'duckduckgo images', 'duckduckgo news', 'duckduckgo videos']`.
+Expected: `['duckduckgo', 'duckduckgo images', 'duckduckgo news', 'duckduckgo videos', 'mojeek']`.
 
 Time the slow step directly against Ollama (the web search query generation, with and without thinking):
 
@@ -142,7 +145,7 @@ Drop `"think":false` to see the thinking-mode cost. `total_duration` includes mo
 | Sources are from the wrong date | Search result quality and model size, not configuration. |
 | Source is right but the answer says the data is missing (e.g. train prices) | The page loads that data with JavaScript; the web loader only sees the static HTML. Not fixable by configuration. |
 | Logs flooded with `401` on `/api/tasks/chat/...` and `/api/v1/channels/` (thousands per minute) | A browser tab still open from before a reset (old session, old chat id) retrying in a loop. Reload or close old Open WebUI tabs. |
-| No sources at all; the SearXNG JSON has `unresponsive_engines: [['duckduckgo', 'CAPTCHA']]` | DuckDuckGo blocked your IP (many searches in a short time, e.g. while testing), or the SearXNG image is older than 2026.11.15 (no firefox impersonation for DDG, every query gets a CAPTCHA). Wait, change IP (VPN), or upgrade SearXNG. |
+| No sources at all; the SearXNG JSON has `unresponsive_engines: [['duckduckgo', 'CAPTCHA']]` | DuckDuckGo blocked your IP (many searches in a short time, e.g. while testing), or the SearXNG image is older than 2026.11.15 (no firefox impersonation for DDG, every query gets a CAPTCHA). Try `docker compose restart searxng` first (it clears the cached DDG token; that fixed a block that had lasted over an hour), then wait, change IP (VPN), or upgrade SearXNG. Mojeek still returns results meanwhile. |
 | "Something went wrong while searching the web"; Open WebUI logs `All provided URLs were blocked or invalid: ['http:///go/v1/...']` | Brave web engine enabled: Brave cloaks result URLs since 2026-11 (searxng/searxng#6967). Keep it out of `keep_only`. |
 | Web search disabled on a fresh install | `docker-compose.yml` must use `ENABLE_WEB_SEARCH` / `WEB_SEARCH_ENGINE` (older `ENABLE_RAG_WEB_SEARCH` / `RAG_WEB_SEARCH_ENGINE` names are ignored by current Open WebUI). |
 
@@ -151,4 +154,4 @@ Notes:
 - Ollama queues requests, so a test run while a chat is generating looks much slower than it is.
 - `ollama ps` shows the context size. Ollama's default is 4096 tokens (a few pages; the whole conversation plus search results must fit, older parts are silently cut). The preset raises it to 16384; the model supports up to 262144.
 - Settings are per Open WebUI database. After `make clean`, repeat the fresh-install steps.
-- Expected external connections: Hugging Face only during `make setup` (the chat model through Ollama, the embedding model through a throwaway container), DuckDuckGo via SearXNG, the update check to `api.github.com`, and the result pages Open WebUI fetches. Nothing else.
+- Expected external connections: Hugging Face only during `make setup` (the chat model through Ollama, the embedding model through a throwaway container), DuckDuckGo and Mojeek via SearXNG, the update check to `api.github.com`, and the result pages Open WebUI fetches. Nothing else.
